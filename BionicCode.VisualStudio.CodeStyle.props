@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+  </PropertyGroup>
+
+  <Target Name="CopyEditorConfigToSolutionRoot" BeforeTargets="BeforeBuild">
+    <PropertyGroup>
+      <!-- Get the .editorconfig file from the package -->
+      <EditorConfigSourcePath>$(MSBuildThisFileDirectory)..\contentFiles\any\any\.editorconfig</EditorConfigSourcePath>
+      <!-- Determine the solution root directory -->
+      <SolutionRootDir Condition="'$(SolutionDir)' != '' And '$(SolutionDir)' != '*Undefined*'">$(SolutionDir)</SolutionRootDir>
+      <SolutionRootDir Condition="'$(SolutionRootDir)' == ''">$(MSBuildProjectDirectory)\..\</SolutionRootDir>
+      <EditorConfigDestinationPath>$(SolutionRootDir).editorconfig</EditorConfigDestinationPath>
+    </PropertyGroup>
+
+    <Message Text="Copying .editorconfig from NuGet package to solution root: $(EditorConfigDestinationPath)" Importance="high" />
+    
+    <!-- Copy the .editorconfig file to solution root if it doesn't exist or is different -->
+    <Copy 
+      SourceFiles="$(EditorConfigSourcePath)" 
+      DestinationFiles="$(EditorConfigDestinationPath)" 
+      SkipUnchangedFiles="true"
+      Condition="Exists('$(EditorConfigSourcePath)')" />
+  </Target>
+
+</Project>

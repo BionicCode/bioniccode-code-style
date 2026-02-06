@@ -1,0 +1,143 @@
+name: Build and Test NuGet Package
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup NuGet
+      if: matrix.os == 'windows-latest'
+      uses: nuget/setup-nuget@v1
+      with:
+        nuget-version: 'latest'
+    
+    - name: Install mono (for Linux/Mac)
+      if: matrix.os != 'windows-latest'
+      run: |
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+          sudo apt-get update
+          sudo apt-get install -y mono-complete
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+          brew install mono
+        fi
+      shell: bash
+    
+    - name: Download NuGet.exe (for Linux/Mac)
+      if: matrix.os != 'windows-latest'
+      run: |
+        wget -q https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
+        chmod +x nuget.exe
+      shell: bash
+    
+    - name: Build package (Windows)
+      if: matrix.os == 'windows-latest'
+      run: ./build.cmd
+      shell: cmd
+    
+    - name: Build package (Linux/Mac)
+      if: matrix.os != 'windows-latest'
+      run: mono nuget.exe pack BionicCode.VisualStudio.CodeStyle.nuspec -OutputDirectory ./nupkg
+      shell: bash
+    
+    - name: Upload package artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package-${{ matrix.os }}
+        path: ./nupkg/*.nupkg
+        retention-days: 7
+    
+    - name: Test package deployment
+      run: |
+        cd example/TestSolution
+        dotnet add TestProject/TestProject.csproj package BionicCode.VisualStudio.CodeStyle --source ../../nupkg
+        dotnet build
+      shell: bash
+    
+    - name: Verify .editorconfig deployment
+      run: |
+        if [ -f "example/TestSolution/.editorconfig" ]; then
+          echo "✅ .editorconfig successfully deployed to solution root"
+          cat example/TestSolution/.editorconfig | head -20
+        else
+          echo "❌ .editorconfig was not deployed"
+          exit 1
+        fi
+      shell: bash
+    
+    - name: Run validation
+      run: |
+        echo "Validating package structure..."
+        if [ -f "./nupkg/BionicCode.VisualStudio.CodeStyle.1.0.0.nupkg" ]; then
+          echo "✅ Package created successfully"
+        else
+          echo "❌ Package not found"
+          exit 1
+        fi
+      shell: bash
+
+  validate-files:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Validate required files
+      run: |
+        echo "Checking required files..."
+        files=(".editorconfig" "BionicCode.VisualStudio.CodeStyle.nuspec" "BionicCode.VisualStudio.CodeStyle.props" "README.md" "LICENSE")
+        for file in "${files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✅ $file exists"
+          else
+            echo "❌ $file missing"
+            exit 1
+          fi
+        done
+    
+    - name: Validate .editorconfig syntax
+      run: |
+        echo "Validating .editorconfig..."
+        # Check for root = true
+        if grep -q "^root = true" .editorconfig; then
+          echo "✅ .editorconfig has root = true"
+        else
+          echo "❌ .editorconfig missing 'root = true'"
+          exit 1
+        fi
+        
+        # Check for C# section
+        if grep -q "^\[*.cs\]" .editorconfig || grep -q "^\[\*.cs\]" .editorconfig; then
+          echo "✅ .editorconfig has C# section"
+        else
+          echo "❌ .editorconfig missing C# section"
+          exit 1
+        fi
+    
+    - name: Validate nuspec
+      run: |
+        echo "Validating nuspec file..."
+        if grep -q "<id>BionicCode.VisualStudio.CodeStyle</id>" BionicCode.VisualStudio.CodeStyle.nuspec; then
+          echo "✅ nuspec has correct package ID"
+        else
+          echo "❌ nuspec has incorrect package ID"
+          exit 1
+        fi
