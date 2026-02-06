@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>BionicCode.VisualStudio.CodeStyle</id>
+    <version>1.0.0</version>
+    <title>BionicCode Visual Studio Code Style</title>
+    <authors>BionicCode</authors>
+    <owners>BionicCode</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/BionicCode/visual-studio-code-style</projectUrl>
+    <description>A NuGet package that automatically deploys a comprehensive .editorconfig file to your solution root. This package enforces consistent C# and .NET coding standards across your entire solution, including formatting rules, naming conventions, and code style preferences.</description>
+    <releaseNotes>
+      Version 1.0.0:
+      - Initial release
+      - Comprehensive .editorconfig with .NET and C# coding standards
+      - Automatic deployment to solution root on build
+      - Supports all modern .NET projects using PackageReference
+    </releaseNotes>
+    <copyright>Copyright (c) BionicCode</copyright>
+    <tags>editorconfig codestyle formatting csharp dotnet visual-studio standards conventions</tags>
+    <developmentDependency>true</developmentDependency>
+  </metadata>
+  <files>
+    <!-- Include the .editorconfig file in contentFiles -->
+    <file src=".editorconfig" target="contentFiles/any/any/.editorconfig" />
+    
+    <!-- Include MSBuild props file that will copy .editorconfig to solution root -->
+    <file src="BionicCode.VisualStudio.CodeStyle.props" target="build/BionicCode.VisualStudio.CodeStyle.props" />
+    <file src="BionicCode.VisualStudio.CodeStyle.props" target="buildTransitive/BionicCode.VisualStudio.CodeStyle.props" />
+    
+    <!-- Include README for documentation -->
+    <file src="README.md" target="" />
+  </files>
+</package>
