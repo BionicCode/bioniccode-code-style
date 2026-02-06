@@ -1,0 +1,49 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+        <Title>BionicCode.CodeStyle</Title>
+        <Authors>BionicCode</Authors>
+        <Description>
+            Visual Studio code styles.
+
+            Installs .editorconfig to the solution.
+        </Description>
+        <PackageProjectUrl>https://github.com/BionicCode/bioniccode-code-style</PackageProjectUrl>
+        <PackageIcon>ChatGPT Image Jul 2, 2025, 10_27_50 AM_small.png</PackageIcon>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <RepositoryUrl>https://github.com/BionicCode/bioniccode-code-style</RepositoryUrl>
+        <PackageTags>code-style;.editorconfig;visual-studio</PackageTags>
+        <NeutralLanguage>en-GB</NeutralLanguage>
+        <IncludeSymbols>True</IncludeSymbols>
+        <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
+        <AnalysisLevel>latest-all</AnalysisLevel>
+        <Copyright>2026</Copyright>
+    </PropertyGroup>
+
+    <Target Name="SetPackageOutputPath" BeforeTargets="_GetAbsoluteOutputPathsForPack" Condition="'$(IsInnerBuild)' != 'true'">
+        <PropertyGroup>
+            <PackageOutputPath Condition="'$(PackageOutputPath)' == ''">$(MSBuildProjectDirectory)\bin\$(Configuration)\NuGetPackage\</PackageOutputPath>
+        </PropertyGroup>
+    </Target>
+
+    <ItemGroup>
+        <None Include="ChatGPT Image Jul 2, 2025, 10_27_50 AM_small.png">
+          <Pack>True</Pack>
+          <PackagePath>\</PackagePath>
+        </None>
+        <None Include="..\..\README.md">
+            <Pack>True</Pack>
+            <PackagePath>\</PackagePath>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="buildTransitive\BionicCode.CodeStyle.props" Pack="true" PackagePath="buildTransitive\" />
+        <None Include="buildTransitive\BionicCode.CodeStyle.globalconfig" Pack="true" PackagePath="buildTransitive\" />
+    </ItemGroup>
+
+</Project>

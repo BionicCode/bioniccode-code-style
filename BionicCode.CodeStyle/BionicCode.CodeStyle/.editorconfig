@@ -47,8 +47,7 @@ dotnet_diagnostic.CA1027.severity = error
 dotnet_code_quality.CA1027.api_surface = all
 
 # CA1031: Do not catch general exception types
-dotnet_code_quality.CA1031.disallowed_symbol_names = NullReferenceException
-dotnet_code_quality.CA1031.disallowed_symbol_names = IndexOutOfRangeException
+dotnet_code_quality.CA1031.disallowed_symbol_names = NullReferenceException|IndexOutOfRangeException
 
 # CA1032: Implement standard exception constructors
 dotnet_diagnostic.CA1032.severity = error

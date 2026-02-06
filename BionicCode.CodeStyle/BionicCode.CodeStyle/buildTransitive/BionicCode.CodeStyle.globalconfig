@@ -1,8 +1,5 @@
-# Remove the line below if you want to inherit .editorconfig settings from higher directories
-root = true
-
-# C# files
-[*.cs]
+is_global = true
+global_level = 0
 
 #### .NET Analyzers ####
 
@@ -47,8 +44,7 @@ dotnet_diagnostic.CA1027.severity = error
 dotnet_code_quality.CA1027.api_surface = all
 
 # CA1031: Do not catch general exception types
-dotnet_code_quality.CA1031.disallowed_symbol_names = NullReferenceException
-dotnet_code_quality.CA1031.disallowed_symbol_names = IndexOutOfRangeException
+dotnet_code_quality.CA1031.disallowed_symbol_names = NullReferenceException|IndexOutOfRangeException
 
 # CA1032: Implement standard exception constructors
 dotnet_diagnostic.CA1032.severity = error
@@ -145,18 +141,6 @@ dotnet_code_quality.CA1069.api_surface = all
 # CA1070: Do not declare event handlers as virtual
 dotnet_diagnostic.CA1070.severity = error
 dotnet_code_quality.CA1070.api_surface = all
-
-
-#### Core EditorConfig Options ####
-
-# Indentation and spacing
-indent_size = 4
-indent_style = space
-tab_width = 4
-
-# New line preferences
-end_of_line = crlf
-insert_final_newline = false
 
 #### .NET Code Actions ####
 
