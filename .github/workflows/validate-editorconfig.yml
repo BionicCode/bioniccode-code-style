@@ -41,7 +41,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Path to the canonical editorconfig inside this repo:
           FILE="BionicCode.CodeStyle/BionicCode.CodeStyle/.editorconfig"
 
           if [ ! -f "$FILE" ]; then
@@ -50,38 +49,31 @@ jobs:
           fi
 
           python - <<'PY'
-          import configparser
-          import os
-          import re
-          import sys
-          import urllib.request
-          import urllib.error
+          import os, re, sys, urllib.request, urllib.error
 
-          fname = os.environ.get("EDITORCONFIG_PATH", "BionicCode.CodeStyle/BionicCode.CodeStyle/.editorconfig")
           fname = "BionicCode.CodeStyle/BionicCode.CodeStyle/.editorconfig"
-
-          # Allowed severity keywords (Roslyn editorconfig severities)
           allowed_severities = {"none", "silent", "suggestion", "warning", "error", "default"}
 
-          # Read file for line-based searches and for parser
-          with open(fname, "r", encoding="utf-8", errors="replace") as f:
-              content = f.read()
-              lines = content.splitlines()
+          # Read file
+          with open(fname, "r", encoding="utf-8", errors="replace", newline="") as f:
+              raw_lines = f.readlines()
 
-          # Parse with configparser (ini-like)
-          parser = configparser.ConfigParser(strict=False, interpolation=None)
-          try:
-              # configparser expects section headers; .editorconfig typically has them.
-              parser.read_string(content)
-          except Exception as e:
-              # emit annotation and exit non-zero
-              print(f"::error file={fname},title=.editorconfig parse error::{e}")
-              sys.exit(1)
+          # Normalize and keep original lines for line-number reporting
+          lines = [ln.rstrip("\n") for ln in raw_lines]
 
+          # Parser state
+          current_section = None
+          lineno = 0
+
+          # Storage
+          parse_errors = []
           errors = []
           warnings = []
 
-          # Helper: find first line containing a given pattern (case-insensitive)
+          # Helpers
+          def emit_parse_error(ln, msg):
+              parse_errors.append((ln, msg))
+
           def find_line_for_text(txt):
               pat = re.compile(re.escape(txt), re.IGNORECASE)
               for i, ln in enumerate(lines, start=1):
@@ -89,33 +81,60 @@ jobs:
                       return i
               return None
 
-          # Pattern for analyzer severity keys: dotnet_diagnostic.<RULEID>.severity
-          pattern_diag = re.compile(r"dotnet_diagnostic\.([A-Za-z0-9_]+)\.severity$", re.IGNORECASE)
-          used_rules = set()
-          malformed_keys = []
+          # Patterns
+          section_re = re.compile(r'^\s*\[(.+?)\]\s*$')
+          comment_re = re.compile(r'^\s*[#;]')
+          keyval_re = re.compile(r'^\s*([^=]+?)\s*=\s*(.*?)\s*$')
+          # analyzer severity key: dotnet_diagnostic.<ID>.severity
+          diag_sev_re = re.compile(r'^dotnet_diagnostic\.([A-Za-z0-9_]+)\.severity$', re.IGNORECASE)
 
-          for section in parser.sections():
-              for raw_key, raw_val in parser.items(section):
-                  key = raw_key.strip()
-                  val = (raw_val or "").strip()
-                  m = pattern_diag.match(key)
-                  if m:
-                      rule = m.group(1).upper()
-                      used_rules.add(rule)
-                      sev = val.lower()
-                      if sev not in allowed_severities:
-                          ln = find_line_for_text(key) or 1
-                          errors.append((ln, f"Invalid severity '{val}' for '{key}'. Allowed: {', '.join(sorted(allowed_severities))}"))
+          # Walk file lines
+          for idx, raw in enumerate(lines, start=1):
+              s = raw.strip()
+              if s == "":
+                  continue
+              if comment_re.match(s):
+                  continue
+              msec = section_re.match(raw)
+              if msec:
+                  current_section = msec.group(1).strip()
+                  continue
+              m = keyval_re.match(raw)
+              if not m:
+                  emit_parse_error(idx, f"Unrecognized line format: {raw.strip()!s}")
+                  continue
+              key = m.group(1).strip()
+              val = m.group(2).strip()
+
+              # For keys that have values like "true:warning" (style values with severity), we shouldn't split that
+              # When checking analyzer severity keys we look specifically for dotnet_diagnostic.<ID>.severity
+              md = diag_sev_re.match(key)
+              if md:
+                  rule = md.group(1).upper()
+                  # value must be one of allowed severities (possibly case-insensitive)
+                  if val.lower() not in allowed_severities:
+                      errors.append((idx, f"Invalid severity '{val}' for '{key}'. Allowed: {', '.join(sorted(allowed_severities))}"))
                   else:
-                      # Heuristic: detect keys that look like they tried to be a severity but are malformed
-                      if key.startswith("dotnet_") and "severity" in key.lower():
-                          ln = find_line_for_text(key) or 1
-                          malformed_keys.append((ln, key))
+                      # track for existence check
+                      # store used rule ids in set for later check
+                      try:
+                          used_rules.add
+                      except NameError:
+                          used_rules = set()
+                      used_rules.add(rule)
+              else:
+                  # detect malformed analyzer-like keys: contains 'dotnet' and 'severity' but not matching expected format
+                  if "dotnet" in key.lower() and "severity" in key.lower() and not diag_sev_re.match(key):
+                      warnings.append((idx, f"Possibly malformed analyzer key: '{key}' (expected dotnet_diagnostic.<RULEID>.severity)"))
 
-          for ln, key in malformed_keys:
-              errors.append((ln, f"Possibly malformed analyzer key: '{key}'. Expected format: dotnet_diagnostic.<RULEID>.severity"))
+          # If parse errors, report and fail
+          for ln, msg in parse_errors:
+              print(f"::error file={fname},line={ln},title=.editorconfig parse error::{msg}")
 
-          # Best-effort fetch of known analyzer IDs from upstream docs
+          if parse_errors:
+              sys.exit(1)
+
+          # Best-effort fetch of known analyzer IDs
           known_rules = set()
           urls = os.environ.get("KNOWN_RULES_URLS", "").split()
           for url in urls:
@@ -133,17 +152,17 @@ jobs:
               except Exception:
                   continue
 
+          # Compare used_rules against known_rules (if we have any known rules)
+          used_rules = globals().get("used_rules", set())
           if known_rules:
               for rule in sorted(used_rules):
                   if rule not in known_rules:
-                      key_pattern = f"dotnet_diagnostic.{rule}.severity"
-                      ln = find_line_for_text(key_pattern) or 1
-                      msg = f"Referenced analyzer rule '{rule}' not found in fetched upstream lists; verify the rule ID is correct."
-                      warnings.append((ln, msg))
+                      ln = find_line_for_text(f"dotnet_diagnostic.{rule}.severity") or 1
+                      warnings.append((ln, f"Referenced analyzer rule '{rule}' not found in fetched upstream lists; verify the rule ID is correct."))
           else:
               print("::notice ::Could not fetch authoritative analyzer ID list; existence checks skipped. This is non-fatal.")
 
-          # Emit annotations
+          # Emit warnings and errors
           for ln, msg in warnings:
               if ln:
                   print(f"::warning file={fname},line={ln},title=.editorconfig warning::{msg}")
