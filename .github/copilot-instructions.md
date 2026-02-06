@@ -88,7 +88,7 @@ nuget pack BionicCode.VisualStudio.CodeStyle.nuspec
 
 - [ ] Package builds without errors
 - [ ] `.nuspec` version matches intended release
-- [ ] All files are included in the package (use `nuget spec -analyze`)
+- [ ] All files are included in the package (inspect with NuGet Package Explorer or extract `.nupkg` as `.zip`)
 - [ ] `.editorconfig` is in `contentFiles/any/any/` directory
 - [ ] `.props` file is in both `build/` and `buildTransitive/` directories
 - [ ] README.md is included at package root
