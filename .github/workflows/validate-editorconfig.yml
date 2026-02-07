@@ -1,4 +1,4 @@
-name: Validate canonical .editorconfig (syntax + analyzer semantics)
+name: Validate canonical .editorconfig (strict schema + analyzer semantics)
 
 # Trigger only when the canonical .editorconfig is modified
 on:
@@ -13,13 +13,13 @@ permissions:
   contents: read
 
 jobs:
-  validate-editorconfig:
+  validate:
     name: Validate canonical .editorconfig
     runs-on: ubuntu-latest
     env:
-      # If true, the job will fail on unknown analyzer IDs (default: false)
-      FAIL_ON_UNKNOWN: "false"
-      # Candidate URLs to fetch known analyzer IDs from (best-effort)
+      FAIL_ON_UNKNOWN_ANALYZERS: "false"
+      SCHEMA_PATH: ".github/editorconfig-schema.json"
+      EDITORCONFIG_PATH: "BionicCode.CodeStyle/BionicCode.CodeStyle/.editorconfig"
       KNOWN_RULES_URLS: >
         https://raw.githubusercontent.com/dotnet/roslyn-analyzers/main/docs/AnalyzerIdList.md
         https://raw.githubusercontent.com/dotnet/roslyn-analyzers/main/Documentation/AnalyzerIds.md
@@ -34,158 +34,17 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.x"
+          python-version: "3.11"
 
-      - name: Validate .editorconfig syntax and analyzer semantics
-        shell: bash
+      - name: Install dependencies
         run: |
-          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install jsonschema
 
-          FILE="BionicCode.CodeStyle/BionicCode.CodeStyle/.editorconfig"
-
-          if [ ! -f "$FILE" ]; then
-            echo "::warning file=${FILE}::File not found; skipping validation."
-            exit 0
-          fi
-
-          python - <<'PY'
-          import os, re, sys, urllib.request, urllib.error
-
-          fname = "BionicCode.CodeStyle/BionicCode.CodeStyle/.editorconfig"
-          allowed_severities = {"none", "silent", "suggestion", "warning", "error", "default"}
-
-          # Read file
-          with open(fname, "r", encoding="utf-8", errors="replace", newline="") as f:
-              raw_lines = f.readlines()
-
-          # Normalize and keep original lines for line-number reporting
-          lines = [ln.rstrip("\n") for ln in raw_lines]
-
-          # Parser state
-          current_section = None
-          lineno = 0
-
-          # Storage
-          parse_errors = []
-          errors = []
-          warnings = []
-
-          # Helpers
-          def emit_parse_error(ln, msg):
-              parse_errors.append((ln, msg))
-
-          def find_line_for_text(txt):
-              pat = re.compile(re.escape(txt), re.IGNORECASE)
-              for i, ln in enumerate(lines, start=1):
-                  if pat.search(ln):
-                      return i
-              return None
-
-          # Patterns
-          section_re = re.compile(r'^\s*\[(.+?)\]\s*$')
-          comment_re = re.compile(r'^\s*[#;]')
-          keyval_re = re.compile(r'^\s*([^=]+?)\s*=\s*(.*?)\s*$')
-          # analyzer severity key: dotnet_diagnostic.<ID>.severity
-          diag_sev_re = re.compile(r'^dotnet_diagnostic\.([A-Za-z0-9_]+)\.severity$', re.IGNORECASE)
-
-          # Walk file lines
-          for idx, raw in enumerate(lines, start=1):
-              s = raw.strip()
-              if s == "":
-                  continue
-              if comment_re.match(s):
-                  continue
-              msec = section_re.match(raw)
-              if msec:
-                  current_section = msec.group(1).strip()
-                  continue
-              m = keyval_re.match(raw)
-              if not m:
-                  emit_parse_error(idx, f"Unrecognized line format: {raw.strip()!s}")
-                  continue
-              key = m.group(1).strip()
-              val = m.group(2).strip()
-
-              # For keys that have values like "true:warning" (style values with severity), we shouldn't split that
-              # When checking analyzer severity keys we look specifically for dotnet_diagnostic.<ID>.severity
-              md = diag_sev_re.match(key)
-              if md:
-                  rule = md.group(1).upper()
-                  # value must be one of allowed severities (possibly case-insensitive)
-                  if val.lower() not in allowed_severities:
-                      errors.append((idx, f"Invalid severity '{val}' for '{key}'. Allowed: {', '.join(sorted(allowed_severities))}"))
-                  else:
-                      # track for existence check
-                      # store used rule ids in set for later check
-                      try:
-                          used_rules.add
-                      except NameError:
-                          used_rules = set()
-                      used_rules.add(rule)
-              else:
-                  # detect malformed analyzer-like keys: contains 'dotnet' and 'severity' but not matching expected format
-                  if "dotnet" in key.lower() and "severity" in key.lower() and not diag_sev_re.match(key):
-                      warnings.append((idx, f"Possibly malformed analyzer key: '{key}' (expected dotnet_diagnostic.<RULEID>.severity)"))
-
-          # If parse errors, report and fail
-          for ln, msg in parse_errors:
-              print(f"::error file={fname},line={ln},title=.editorconfig parse error::{msg}")
-
-          if parse_errors:
-              sys.exit(1)
-
-          # Best-effort fetch of known analyzer IDs
-          known_rules = set()
-          urls = os.environ.get("KNOWN_RULES_URLS", "").split()
-          for url in urls:
-              if not url:
-                  continue
-              try:
-                  with urllib.request.urlopen(url, timeout=10) as resp:
-                      if resp.status != 200:
-                          continue
-                      txt = resp.read().decode("utf-8", errors="ignore")
-                      # Find tokens that look like analyzer IDs: e.g. CA1000, CS0168, IDE0090
-                      found = set(re.findall(r"\b[A-Z]{1,4}\d{2,5}\b", txt))
-                      if found:
-                          known_rules.update(found)
-              except Exception:
-                  continue
-
-          # Compare used_rules against known_rules (if we have any known rules)
-          used_rules = globals().get("used_rules", set())
-          if known_rules:
-              for rule in sorted(used_rules):
-                  if rule not in known_rules:
-                      ln = find_line_for_text(f"dotnet_diagnostic.{rule}.severity") or 1
-                      warnings.append((ln, f"Referenced analyzer rule '{rule}' not found in fetched upstream lists; verify the rule ID is correct."))
-          else:
-              print("::notice ::Could not fetch authoritative analyzer ID list; existence checks skipped. This is non-fatal.")
-
-          # Emit warnings and errors
-          for ln, msg in warnings:
-              if ln:
-                  print(f"::warning file={fname},line={ln},title=.editorconfig warning::{msg}")
-              else:
-                  print(f"::warning file={fname},title=.editorconfig warning::{msg}")
-
-          for ln, msg in errors:
-              if ln:
-                  print(f"::error file={fname},line={ln},title=.editorconfig error::{msg}")
-              else:
-                  print(f"::error file={fname},title=.editorconfig error::{msg}")
-
-          fail_on_unknown = os.environ.get("FAIL_ON_UNKNOWN", "false").lower() in ("1", "true", "yes")
-          if errors:
-              sys.exit(1)
-          if fail_on_unknown and warnings:
-              sys.exit(1)
-
-          print("Validator completed: no fatal issues found.")
-          sys.exit(0)
-          PY
-
-      - name: Summary
-        if: always()
+      - name: Run editorconfig validator
         run: |
-          echo "Validator finished. See workflow annotations for details."
+          python .github/scripts/validate_editorconfig.py \
+            --schema "$SCHEMA_PATH" \
+            --file "$EDITORCONFIG_PATH" \
+            --known-rules-urls "$KNOWN_RULES_URLS" \
+            --fail-on-unknown-analysers "${FAIL_ON_UNKNOWN_ANALYZERS}"
