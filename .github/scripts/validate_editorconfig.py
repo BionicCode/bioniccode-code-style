@@ -112,14 +112,16 @@ class EditorconfigValidator:
                     line_num,
                     f"Invalid severity '{val}' for '{key}'. Allowed: {', '.join(sorted(allowed_severities))}"
                 ))
-        else:
-            # Check for malformed analyzer keys (but exclude naming rules which are valid)
-            naming_rule_re = re.compile(r'^dotnet_naming_rule\.[A-Za-z0-9_]+\.severity$', re.IGNORECASE)
-            if 'dotnet' in key.lower() and 'severity' in key.lower() and not naming_rule_re.match(key):
-                self.warnings.append((
-                    line_num,
-                    f"Possibly malformed analyzer key: '{key}' (expected dotnet_diagnostic.<RULEID>.severity)"
-                ))
+            # Don't validate against patterns for analyzer severity keys - we handled it above
+            return
+        
+        # Check for malformed analyzer keys (but exclude naming rules which are valid)
+        naming_rule_re = re.compile(r'^dotnet_naming_rule\.[A-Za-z0-9_]+\.severity$', re.IGNORECASE)
+        if 'dotnet' in key.lower() and 'severity' in key.lower() and not naming_rule_re.match(key):
+            self.warnings.append((
+                line_num,
+                f"Possibly malformed analyzer key: '{key}' (expected dotnet_diagnostic.<RULEID>.severity)"
+            ))
         
         # Validate against pattern properties in schema
         self.validate_against_patterns(key, val, line_num)
