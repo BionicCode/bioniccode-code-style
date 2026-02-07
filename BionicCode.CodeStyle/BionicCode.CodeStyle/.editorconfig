@@ -15,12 +15,12 @@ dotnet_diagnostic.CA1005.severity = error
 dotnet_code_quality.CA1005.api_surface = all
 
 # CA1003: Use generic event handler instances
-dotnet_diagnostic.CA1003.severity = error
+dotnet_diagnostic.CA1003.severity = erro
 dotnet_code_quality.CA1003.api_surface = all
 
 # CA1008: Enums should have zero value
 dotnet_diagnostic.CA1008.severity = error
-dotnet_code_quality.CA1008.api_surface = all
+dotnet_code_quality.CA1008.api_surfae = all
 
 # CA1010: Collections should implement generic interface
 dotnet_diagnostic.CA1010.severity = error
