@@ -7,7 +7,7 @@ Usage:
   python validate_editorconfig.py --schema .github/editorconfig-schema.json \
     --file BionicCode.CodeStyle/BionicCode.CodeStyle/.editorconfig \
     --known-rules-urls "URL1 URL2" \
-    --fail-on-unknown-analysers false
+    --fail-on-unknown-analyzers false
 """
 
 import argparse
@@ -301,7 +301,7 @@ def main():
     parser.add_argument('--file', required=True, help='Path to .editorconfig file')
     parser.add_argument('--known-rules-urls', default='', 
                         help='Space-separated URLs to fetch known analyzer IDs')
-    parser.add_argument('--fail-on-unknown-analysers', default='false',
+    parser.add_argument('--fail-on-unknown-analyzers', default='false',
                         help='Fail validation if unknown analyzer IDs are found (true/false)')
     
     args = parser.parse_args()
@@ -310,7 +310,7 @@ def main():
     urls = [u.strip() for u in args.known_rules_urls.split() if u.strip()]
     
     # Parse fail flag
-    fail_on_unknown = args.fail_on_unknown_analysers.lower() in ('true', '1', 'yes')
+    fail_on_unknown = args.fail_on_unknown_analyzers.lower() in ('true', '1', 'yes')
     
     # Create and run validator
     validator = EditorconfigValidator(

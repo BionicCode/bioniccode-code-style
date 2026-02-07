@@ -47,4 +47,4 @@ jobs:
             --schema "$SCHEMA_PATH" \
             --file "$EDITORCONFIG_PATH" \
             --known-rules-urls "$KNOWN_RULES_URLS" \
-            --fail-on-unknown-analysers "${FAIL_ON_UNKNOWN_ANALYZERS}"
+            --fail-on-unknown-analyzers "${FAIL_ON_UNKNOWN_ANALYZERS}"
