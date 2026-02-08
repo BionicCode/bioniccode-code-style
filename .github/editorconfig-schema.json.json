@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BionicCode EditorConfig schema (dotnet/roslyn-focused)",
+  "description": "A pattern-based schema for validating keys/values found in dotnet .editorconfig files. Patterns are matched against full key names.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "description": "Schema metadata",
+      "type": "object"
+    }
+  },
+  "definitions": {
+    "severity": {
+      "type": "string",
+      "enum": ["none", "silent", "suggestion", "warning", "error", "default"]
+    },
+    "bool": {
+      "type": "string",
+      "pattern": "^(true|false)$"
+    },
+    "any": { "type": "string" },
+    "value_with_severity": {
+      "type": "string",
+      "pattern": "^[^:]+(:((none|silent|suggestion|warning|error|default)))?$"
+    }
+  },
+  "patternProperties": {
+    "^root$": { "type": "string", "pattern": "^(true|false)$" },
+    "^indent_size$": { "type": "string", "pattern": "^[0-9]+$" },
+    "^indent_style$": { "type": "string", "enum": ["tab", "space"] },
+    "^tab_width$": { "type": "string", "pattern": "^[0-9]+$" },
+    "^end_of_line$": { "type": "string", "enum": ["lf", "crlf", "cr"] },
+    "^insert_final_newline$": { "type": "string", "pattern": "^(true|false)$" },
+
+    "^dotnet_diagnostic\\.[A-Za-z0-9_]+\\.severity$": { "$ref": "#/definitions/severity" },
+
+    "^dotnet_code_quality\\.[A-Za-z0-9_]+\\.api_surface$": {
+      "type": "string",
+      "enum": ["all", "public", "internal"]
+    },
+
+    "^dotnet_code_quality\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+$": { "$ref": "#/definitions/any" },
+
+    "^dotnet_naming_rule\\.[A-Za-z0-9_]+\\.severity$": { "$ref": "#/definitions/severity" },
+    "^dotnet_naming_rule\\.[A-Za-z0-9_]+\\.symbols$": { "type": "string" },
+    "^dotnet_naming_rule\\.[A-Za-z0-9_]+\\.style$": { "type": "string" },
+
+    "^dotnet_naming_symbols\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+$": { "type": "string" },
+    "^dotnet_naming_style\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+$": { "type": "string" },
+
+    "^dotnet_style_.*$": { "$ref": "#/definitions/value_with_severity" },
+    "^csharp_style_.*$": { "$ref": "#/definitions/value_with_severity" },
+    "^csharp_.*$": { "$ref": "#/definitions/value_with_severity" },
+
+    "^file_header_template$": { "type": "string" },
+
+    ".*": { "$ref": "#/definitions/any" }
+  }
+}
